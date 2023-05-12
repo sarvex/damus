@@ -52,13 +52,12 @@ def get_log_entries(commitrange):
         m = re.match(r'^commit ([A-Fa-f0-9]{40})$', l)
         a = re.match(r'^Author: ([^<]+)<.*$', l)
         if m:
-            commit = m.group(1)
+            commit = m[1]
 
         if a:
-            author = "(" + a.group(1)[:-1] + ")"
+            author = f"({a[1][:-1]})"
 
-        m = re.match(
-            r'^\s+Changelog-({}): (.*)$'.format("|".join(sections)), l, re.IGNORECASE)
+        m = re.match(f'^\s+Changelog-({"|".join(sections)}): (.*)$', l, re.IGNORECASE)
 
         if not m:
             continue
@@ -79,21 +78,24 @@ def get_log_entries(commitrange):
         #    pullreq = None
         pullreq = None
 
-        e = Entry(commit, pullreq, m.group(2), m.group(1).lower(), author)
+        e = Entry(commit, pullreq, m[2], m[1].lower(), author)
         entries.append(e)
 
     return entries
 
 
 def linkify(entries):
-    links = []
-    for e in entries:
-        if e.pullreq is not None:
-            links.append(Link(
-                ref='#{}'.format(e.pullreq),
-                content=e.content,
-                url="https://github.com/{repo}/pull/{pullreq}".format(repo=repo, pullreq=e.pullreq)
-            ))
+    links = [
+        Link(
+            ref=f'#{e.pullreq}',
+            content=e.content,
+            url="https://github.com/{repo}/pull/{pullreq}".format(
+                repo=repo, pullreq=e.pullreq
+            ),
+        )
+        for e in entries
+        if e.pullreq is not None
+    ]
     return list(set(links))
 
 
@@ -111,8 +113,7 @@ def commit_date(commitsha):
     """Get the date of the specified commit.
     """
     line = git("show -s --format=%ci")
-    dt = datetime.strptime(line.strip(), '%Y-%m-%d %H:%M:%S %z')
-    return dt
+    return datetime.strptime(line.strip(), '%Y-%m-%d %H:%M:%S %z')
 
 
 template = Template("""<%def name="group(entries)">
